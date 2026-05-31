@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Emergencias Hídricas Tacna</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f8f7f4; --bg2: #f0efe9; --bg3: #fff;
+    --text: #1a1a18; --text2: #5f5e5a; --text3: #888780;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --radius: 10px; --radius-lg: 14px;
+  }
+  body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+  .wrap { max-width: 1300px; margin: 0 auto; padding: 24px 28px; }
+  /* Header */
+  .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: var(--bg3); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 18px 24px; margin-bottom: 20px; border-top: 3px solid #E07B39; }
+  .header-title { font-size: 20px; font-weight: 700; color: var(--text); }
+  .header-sub { font-size: 11.5px; color: var(--text2); margin-top: 3px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .header-right label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; }
+  select { font-size: 12px; padding: 6px 12px; border: 0.5px solid var(--border2); border-radius: 7px; background: var(--bg2); color: var(--text); cursor: pointer; font-family: inherit; }
+  /* KPIs */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .kpi-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text2); margin-top: 6px; }
+  .kpi-val { font-size: 24px; font-weight: 700; line-height: 1.1; margin: 5px 0 3px; font-family: 'DM Mono', monospace; }
+  .kpi-sub { font-size: 10.5px; color: var(--text3); }
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; border-bottom: 0.5px solid var(--border2); margin-bottom: 18px; flex-wrap: wrap; }
+  .tab { background: none; border: none; padding: 8px 16px; font-size: 12.5px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -0.5px; font-family: inherit; transition: color .15s; border-radius: 6px 6px 0 0; }
+  .tab:hover { background: var(--bg2); color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: #185FA5; font-weight: 500; background: var(--bg2); }
+  /* Panels */
+  .panel { display: none; } .panel.active { display: block; }
+  /* Grid */
+  .g2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-bottom: 16px; }
+  .g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 800px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  /* Cards */
+  .card { background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 0; }
+  .card-mb { margin-bottom: 16px; }
+  .card-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--text2); margin-bottom: 12px; }
+  .ch { position: relative; width: 100%; }
+  /* Legend */
+  .leg { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--text2); margin-bottom: 10px; }
+  .leg span { display: flex; align-items: center; gap: 5px; }
+  .leg-sq { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  /* Table */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tbl th { text-align: left; padding: 7px 10px; font-size: 10.5px; font-weight: 600; color: var(--text2); border-bottom: 0.5px solid var(--border2); text-transform: uppercase; letter-spacing: .06em; }
+  .tbl td { padding: 9px 10px; border-bottom: 0.5px solid var(--border); }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl .total td { background: var(--bg2); font-weight: 600; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 9px; border-radius: 999px; font-weight: 600; }
+  .badge-red { background: #fce8e8; color: #9a2a2a; }
+  .badge-amber { background: #fdf0d8; color: #8a4f10; }
+  .prov-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  /* Footer */
+  .footer { text-align: center; font-size: 11px; color: var(--text3); padding: 24px 0 12px; border-top: 0.5px solid var(--border); margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="header-title">🌊 Emergencias Hídricas — Tacna</div>
+      <div class="header-sub">Métricas sociodemográficas e hidrológicas por provincia · INEI 2017/2025 · ANA · INDECI</div>
+    </div>
+    <div class="header-right">
+      <label>Provincia:</label>
+      <select id="provFilter">
+        <option value="all">Todas las provincias</option>
+        <option value="Candavare">Candavare</option>
+        <option value="Jorge Basadre">Jorge Basadre</option>
+        <option value="Tacna Provincia">Tacna Provincia</option>
+        <option value="Tarata">Tarata</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="demografia">👥 Demografía</button>
+    <button class="tab" data-tab="pobreza">💰 Pobreza</button>
+    <button class="tab" data-tab="eventos">🌊 Eventos hídricos</button>
+    <button class="tab" data-tab="hidrografia">🏞 Hidrografía</button>
+    <button class="tab" data-tab="laboral">💼 Mercado laboral</button>
+    <button class="tab" data-tab="tabla">📋 Tabla resumen</button>
+  </div>
+
+  <!-- DEMOGRAFÍA -->
+  <div id="demografia" class="panel active">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Población 2017 vs 2025</div>
+        <div class="leg" id="leg-pob"></div>
+        <div class="ch" style="height:220px"><canvas id="c-pob" role="img" aria-label="Población censal 2017 y proyectada 2025 por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Crecimiento poblacional 2020–2025 (%)</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#639922"></span>Crecimiento</span><span><span class="leg-sq" style="background:#E24B4A"></span>Decrecimiento</span></div>
+        <div class="ch" style="height:220px"><canvas id="c-crec" role="img" aria-label="Crecimiento poblacional por provincia"></canvas></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Estructura etaria (%)</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#378ADD"></span>Menores de 15</span><span><span class="leg-sq" style="background:#BA7517"></span>Adultos 65+</span></div>
+        <div class="ch" style="height:200px"><canvas id="c-edad" role="img" aria-label="Estructura etaria por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Distribución por sexo (%)</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#378ADD"></span>Hombres</span><span><span class="leg-sq" style="background:#D4537E"></span>Mujeres</span></div>
+        <div class="ch" style="height:200px"><canvas id="c-sexo" role="img" aria-label="Distribución por sexo por provincia"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POBREZA -->
+  <div id="pobreza" class="panel">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Pobreza monetaria y extrema (%)</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#E24B4A"></span>Pobreza monetaria</span><span><span class="leg-sq" style="background:#791818"></span>Pobreza extrema</span></div>
+        <div class="ch" style="height:220px"><canvas id="c-pob-mon" role="img" aria-label="Pobreza monetaria y extrema por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Perfil de vulnerabilidad (%)</div>
+        <div class="leg" id="leg-vuln"></div>
+        <div class="ch" style="height:220px"><canvas id="c-radar" role="img" aria-label="Radar de vulnerabilidad"></canvas></div>
+      </div>
+    </div>
+    <div class="card card-mb">
+      <div class="card-title">Acceso a servicios básicos (%)</div>
+      <div class="leg" id="leg-serv"></div>
+      <div class="ch" style="height:220px"><canvas id="c-serv" role="img" aria-label="Acceso a servicios básicos"></canvas></div>
+    </div>
+  </div>
+
+  <!-- EVENTOS -->
+  <div id="eventos" class="panel">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Alertas y emergencias por provincia</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#E24B4A"></span>Emergencias</span><span><span class="leg-sq" style="background:#EF9F27"></span>Alertas</span></div>
+        <div class="ch" style="height:220px"><canvas id="c-ev" role="img" aria-label="Alertas y emergencias por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Detalle de eventos</div>
+        <table class="tbl" id="t-ev"></table>
+      </div>
+    </div>
+    <div class="card card-mb">
+      <div class="card-title">Relación pobreza monetaria vs total eventos</div>
+      <div class="ch" style="height:220px"><canvas id="c-scatter" role="img" aria-label="Dispersión pobreza vs eventos hídricos"></canvas></div>
+    </div>
+  </div>
+
+  <!-- HIDROGRAFÍA -->
+  <div id="hidrografia" class="panel">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Ríos y quebradas por provincia</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#378ADD"></span>Ríos</span><span><span class="leg-sq" style="background:#85B7EB"></span>Quebradas</span></div>
+        <div class="ch" style="height:220px"><canvas id="c-rios" role="img" aria-label="Ríos y quebradas por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Longitud de red hídrica (km)</div>
+        <div class="leg" id="leg-hid"></div>
+        <div class="ch" style="height:220px"><canvas id="c-long" role="img" aria-label="Longitud red hídrica"></canvas></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Densidad hídrica (km/km²)</div>
+        <div class="ch" style="height:200px"><canvas id="c-dhid" role="img" aria-label="Densidad hídrica por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Superficie provincial (km²)</div>
+        <div class="ch" style="height:200px"><canvas id="c-sup" role="img" aria-label="Superficie provincial en km²"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LABORAL -->
+  <div id="laboral" class="panel">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">PEA ocupada vs desocupada</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#639922"></span>PEA ocupada</span><span><span class="leg-sq" style="background:#E24B4A"></span>PEA desocupada</span></div>
+        <div class="ch" style="height:240px"><canvas id="c-pea" role="img" aria-label="PEA ocupada y desocupada por provincia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">% PEA desocupada y % afiliados a salud</div>
+        <div class="leg"><span><span class="leg-sq" style="background:#E24B4A"></span>% Desocupada</span><span><span class="leg-sq" style="background:#378ADD"></span>% Afil. salud</span></div>
+        <div class="ch" style="height:240px"><canvas id="c-lab2" role="img" aria-label="Desocupación y cobertura de salud por provincia"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <div id="tabla" class="panel">
+    <div class="card card-mb">
+      <div class="card-title">Resumen general — todas las métricas</div>
+      <div style="overflow-x:auto"><table class="tbl" id="t-resumen"></table></div>
+    </div>
+  </div>
+
+  <div class="footer">Dashboard generado a partir de metricas_tacna.csv · Fuentes: INEI Censos 2017, Proyección INEI 2025, ANA, INDECI</div>
+</div>
+
+<script>
+const PROVS = ['Candavare','Jorge Basadre','Tacna Provincia','Tarata'];
+const COLORS = {'Candavare':'#2196A6','Jorge Basadre':'#7B5EA7','Tacna Provincia':'#E07B39','Tarata':'#3A8C4E'};
+const DATA = {
+  'Candavare':       {sup:2261.1,dist:6,pob17:6102,pob25:5978,part:1.49,crec:-1.89,dens:2.6,men15:19.4,ad65:20.63,hom:51.79,muj:48.21,pobMon:26.85,pobExt:41.58,nbi:36.49,sinAgua:52.34,sinElec:24.0,conInt:98.21,salud:59.47,pea:3340,peaDes:8.86,alertas:4,emerg:3,rios:6,qdas:0,longKm:324.5,densH:0.1435},
+  'Jorge Basadre':   {sup:2928.7,dist:3,pob17:10773,pob25:13825,part:3.44,crec:10.17,dens:4.7,men15:21.27,ad65:9.68,hom:60.48,muj:39.52,pobMon:7.9,pobExt:7.01,nbi:36.0,sinAgua:12.4,sinElec:13.47,conInt:81.6,salud:21.49,pea:6639,peaDes:4.49,alertas:0,emerg:1,rios:6,qdas:1,longKm:331.71,densH:0.1133},
+  'Tacna Provincia': {sup:8066.1,dist:11,pob17:306363,pob25:376260,part:93.58,crec:8.69,dens:46.6,men15:23.28,ad65:10.31,hom:49.14,muj:50.86,pobMon:14.65,pobExt:14.68,nbi:14.81,sinAgua:7.5,sinElec:12.62,conInt:68.95,salud:30.77,pea:159723,peaDes:6.39,alertas:5,emerg:6,rios:10,qdas:17,longKm:1180.13,densH:0.1463},
+  'Tarata':          {sup:2820.0,dist:8,pob17:6094,pob25:6026,part:1.5,crec:-1.86,dens:2.1,men15:17.48,ad65:20.66,hom:56.25,muj:43.75,pobMon:32.05,pobExt:49.36,nbi:28.72,sinAgua:30.88,sinElec:29.18,conInt:97.73,salud:64.0,pea:3230,peaDes:7.18,alertas:0,emerg:3,rios:8,qdas:1,longKm:489.05,densH:0.1734},
+  'TACNA (Total Dpto.)':{sup:16075.9,dist:28,pob17:329332,pob25:402089,part:100,crec:8.39,dens:25.0,men15:23.04,ad65:10.67,hom:49.69,muj:50.31,pobMon:14.98,pobExt:15.57,nbi:16.16,sinAgua:8.93,sinElec:13.16,conInt:70.44,salud:31.62,pea:172932,peaDes:6.38,alertas:9,emerg:13,rios:30,qdas:19,longKm:2325.39,densH:0.1447}
+};
+
+const BASE_OPTS = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{grid:{color:'rgba(0,0,0,0.06)'},ticks:{font:{size:11},color:'#888780'}},
+    y:{grid:{color:'rgba(0,0,0,0.06)'},ticks:{font:{size:11},color:'#888780'}}
+  }
+};
+
+let charts={}, activeFilter='all';
+
+function getProvs(){ return activeFilter==='all'?PROVS:PROVS.filter(p=>p===activeFilter); }
+function getD(f){ return getProvs().map(p=>DATA[p][f]); }
+function getC(){ return getProvs().map(p=>COLORS[p]); }
+function mk(id,cfg){ if(charts[id]){charts[id].destroy();} const el=document.getElementById(id); if(!el)return; charts[id]=new Chart(el,cfg); }
+function leg(id,labels,colors){ const el=document.getElementById(id); if(!el)return; el.innerHTML=labels.map((l,i)=>`<span><span class="leg-sq" style="background:${colors[i]}"></span>${l}</span>`).join(''); }
+
+function buildKPIs(){
+  const f=activeFilter==='all'?'TACNA (Total Dpto.)':activeFilter;
+  const d=DATA[f], color=activeFilter==='all'?'#185FA5':COLORS[activeFilter];
+  const fmt=v=>v>=1000?v.toLocaleString('es-PE'):v;
+  const items=[
+    {label:'Población 2025',val:fmt(d.pob25),sub:`Censal 2017: ${fmt(d.pob17)}`,accent:color},
+    {label:'Pobreza monetaria',val:d.pobMon.toFixed(1)+'%',sub:`Extrema: ${d.pobExt.toFixed(1)}%`,accent:'#E24B4A'},
+    {label:'Con ≥1 NBI',val:d.nbi.toFixed(1)+'%',sub:`Sin agua: ${d.sinAgua}%`,accent:'#EF9F27'},
+    {label:'Total eventos',val:d.alertas+d.emerg,sub:`${d.alertas} alertas · ${d.emerg} emerg.`,accent:'#E07B39'},
+    {label:'Red hídrica',val:d.longKm.toLocaleString('es-PE')+' km',sub:`${d.rios} ríos · ${d.qdas} quebradas`,accent:'#378ADD'},
+    {label:'PEA total',val:fmt(d.pea),sub:`Desocup.: ${d.peaDes.toFixed(1)}%`,accent:'#639922'},
+  ];
+  document.getElementById('kpiRow').innerHTML=items.map(i=>`
+    <div class="kpi">
+      <div class="kpi-accent" style="background:${i.accent}"></div>
+      <div class="kpi-label">${i.label}</div>
+      <div class="kpi-val" style="color:${i.accent}">${i.val}</div>
+      <div class="kpi-sub">${i.sub}</div>
+    </div>`).join('');
+}
+
+function buildDemografia(){
+  const provs=getProvs(),cols=getC();
+  leg('leg-pob',provs,cols);
+  mk('c-pob',{type:'bar',data:{labels:provs,datasets:[
+    {label:'2017',data:getD('pob17'),backgroundColor:cols.map(c=>c+'55'),borderColor:cols,borderWidth:1.5},
+    {label:'2025',data:getD('pob25'),backgroundColor:cols,borderColor:cols,borderWidth:1.5}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v>=1000?v.toLocaleString('es-PE'):v}}}}});
+  mk('c-crec',{type:'bar',data:{labels:provs,datasets:[{data:getD('crec'),backgroundColor:getProvs().map(p=>DATA[p].crec>=0?'#63992266':'#E24B4A66'),borderColor:getProvs().map(p=>DATA[p].crec>=0?'#639922':'#E24B4A'),borderWidth:1.5}]},options:{...BASE_OPTS,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.toFixed(2)}%`}}},scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+'%'}}}}});
+  mk('c-edad',{type:'bar',data:{labels:provs,datasets:[
+    {label:'< 15 años',data:getD('men15'),backgroundColor:'#378ADD66',borderColor:'#378ADD',borderWidth:1.5},
+    {label:'65+ años',data:getD('ad65'),backgroundColor:'#BA751766',borderColor:'#BA7517',borderWidth:1.5}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+'%'}}}}});
+  mk('c-sexo',{type:'bar',data:{labels:provs,datasets:[
+    {label:'Hombres',data:getD('hom'),backgroundColor:'#378ADD',borderColor:'#185FA5',borderWidth:1},
+    {label:'Mujeres',data:getD('muj'),backgroundColor:'#D4537E',borderColor:'#993556',borderWidth:1}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,min:0,max:100,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+'%'}}}}});
+}
+
+function buildPobreza(){
+  const provs=getProvs(),cols=getC();
+  leg('leg-vuln',provs,cols); leg('leg-serv',provs,cols);
+  mk('c-pob-mon',{type:'bar',data:{labels:provs,datasets:[
+    {label:'Pobreza monetaria',data:getD('pobMon'),backgroundColor:'#E24B4A88',borderColor:'#E24B4A',borderWidth:1.5},
+    {label:'Pobreza extrema',data:getD('pobExt'),backgroundColor:'#79181888',borderColor:'#791818',borderWidth:1.5}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+'%'}}}}});
+  mk('c-radar',{type:'radar',data:{
+    labels:['Pob. monetaria','Pob. extrema','≥1 NBI','Sin agua','Sin electr.'],
+    datasets:provs.map((p,i)=>({label:p,data:[DATA[p].pobMon,DATA[p].pobExt,DATA[p].nbi,DATA[p].sinAgua,DATA[p].sinElec],borderColor:cols[i],backgroundColor:cols[i]+'33',pointBackgroundColor:cols[i],pointRadius:3,borderWidth:1.5}))
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{grid:{color:'rgba(0,0,0,0.08)'},angleLines:{color:'rgba(0,0,0,0.08)'},ticks:{font:{size:10},backdropColor:'transparent'},pointLabels:{font:{size:10}}}}}});
+  const sl=['Sin agua','Sin electricidad','Con internet','Afil. salud'];
+  const sd=[getD('sinAgua'),getD('sinElec'),getD('conInt'),getD('salud')];
+  mk('c-serv',{type:'bar',data:{labels:sl,datasets:provs.map((p,i)=>({label:p,data:sd.map(a=>a[i]),backgroundColor:cols[i]+'99',borderColor:cols[i],borderWidth:1.5}))},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+'%'}}}}});
+}
+
+function buildEventos(){
+  const provs=getProvs(),cols=getC();
+  mk('c-ev',{type:'bar',data:{labels:provs,datasets:[
+    {label:'Emergencias',data:getD('emerg'),backgroundColor:'#E24B4A',borderColor:'#A32D2D',borderWidth:1},
+    {label:'Alertas',data:getD('alertas'),backgroundColor:'#EF9F27',borderColor:'#BA7517',borderWidth:1}
+  ]},options:{...BASE_OPTS,indexAxis:'y',scales:{x:{...BASE_OPTS.scales.x,ticks:{...BASE_OPTS.scales.x.ticks,stepSize:1}},y:{...BASE_OPTS.scales.y}}}});
+  const tev=document.getElementById('t-ev');
+  tev.innerHTML=`<thead><tr><th>Provincia</th><th>Alertas</th><th>Emergencias</th><th>Total</th></tr></thead><tbody>`+
+    provs.map(p=>`<tr>
+      <td style="color:${COLORS[p]};font-weight:500"><span class="prov-dot" style="background:${COLORS[p]}"></span>${p}</td>
+      <td><span class="badge badge-amber">${DATA[p].alertas}</span></td>
+      <td><span class="badge badge-red">${DATA[p].emerg}</span></td>
+      <td style="font-weight:600">${DATA[p].alertas+DATA[p].emerg}</td>
+    </tr>`).join('')+`</tbody>`;
+  mk('c-scatter',{type:'scatter',data:{datasets:provs.map((p,i)=>({label:p,data:[{x:DATA[p].pobMon,y:DATA[p].alertas+DATA[p].emerg}],backgroundColor:cols[i]+'cc',borderColor:cols[i],pointRadius:Math.max(8,DATA[p].pob25/25000),pointHoverRadius:12}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:10}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.x}% pobreza · ${ctx.parsed.y} eventos`}}},
+    scales:{x:{title:{display:true,text:'% Pobreza monetaria',font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'},ticks:{font:{size:11},color:'#888780'}},y:{title:{display:true,text:'N° eventos',font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'},ticks:{font:{size:11},color:'#888780',stepSize:1},min:0}}}});
+}
+
+function buildHidrografia(){
+  const provs=getProvs(),cols=getC();
+  leg('leg-hid',provs,cols);
+  mk('c-rios',{type:'bar',data:{labels:provs,datasets:[
+    {label:'Ríos',data:getD('rios'),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1.5},
+    {label:'Quebradas',data:getD('qdas'),backgroundColor:'#85B7EB88',borderColor:'#85B7EB',borderWidth:1.5}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,stepSize:1}}}}});
+  mk('c-long',{type:'bar',data:{labels:provs,datasets:[{data:getD('longKm'),backgroundColor:cols.map(c=>c+'aa'),borderColor:cols,borderWidth:1.5}]},options:{...BASE_OPTS,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.toLocaleString('es-PE')} km`}}},scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+' km'}}}}});
+  mk('c-dhid',{type:'bar',data:{labels:provs,datasets:[{data:getD('densH'),backgroundColor:cols.map(c=>c+'aa'),borderColor:cols,borderWidth:1.5}]},options:{...BASE_OPTS,plugins:{legend:{display:false}},scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v.toFixed(4)}}}}});
+  mk('c-sup',{type:'bar',data:{labels:provs,datasets:[{data:getD('sup'),backgroundColor:cols.map(c=>c+'aa'),borderColor:cols,borderWidth:1.5}]},options:{...BASE_OPTS,plugins:{legend:{display:false}},scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v.toLocaleString('es-PE')+' km²'}}}}});
+}
+
+function buildLaboral(){
+  const provs=getProvs(),cols=getC();
+  const peaOc=provs.map(p=>Math.round(DATA[p].pea*(1-DATA[p].peaDes/100)));
+  const peaDe=provs.map(p=>Math.round(DATA[p].pea*(DATA[p].peaDes/100)));
+  mk('c-pea',{type:'bar',data:{labels:provs,datasets:[
+    {label:'PEA ocupada',data:peaOc,backgroundColor:'#63992266',borderColor:'#639922',borderWidth:1.5},
+    {label:'PEA desocupada',data:peaDe,backgroundColor:'#E24B4A66',borderColor:'#E24B4A',borderWidth:1.5}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v.toLocaleString('es-PE')}}}}});
+  mk('c-lab2',{type:'bar',data:{labels:provs,datasets:[
+    {label:'% PEA desocupada',data:getD('peaDes'),backgroundColor:'#E24B4A88',borderColor:'#E24B4A',borderWidth:1.5},
+    {label:'% Afil. salud',data:getD('salud'),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1.5}
+  ]},options:{...BASE_OPTS,scales:{x:{...BASE_OPTS.scales.x},y:{...BASE_OPTS.scales.y,ticks:{...BASE_OPTS.scales.y.ticks,callback:v=>v+'%'}}}}});
+}
+
+function buildTabla(){
+  const allProvs=[...PROVS,'TACNA (Total Dpto.)'];
+  const cols=[['Provincia',''],['Pob. 2025','pob25'],['% Dpto.','part'],['Crec. 20-25','crec'],['Densidad','dens'],['Pob. Mon.','pobMon'],['Pob. Ext.','pobExt'],['≥1 NBI','nbi'],['Sin agua','sinAgua'],['Sin electr.','sinElec'],['Alertas','alertas'],['Emerg.','emerg'],['Ríos','rios'],['Qdas.','qdas'],['Long. km','longKm']];
+  const fmt=(k,v)=>{
+    if(k==='pob25'||k==='longKm')return v.toLocaleString('es-PE');
+    if(['part','crec','dens','pobMon','pobExt','nbi','sinAgua','sinElec'].includes(k))return v.toFixed(2)+(['dens'].includes(k)?' h/km²':'%');
+    return v;
+  };
+  document.getElementById('t-resumen').innerHTML=`<thead><tr>${cols.map(([l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>`+
+    allProvs.map(p=>{
+      const d=DATA[p],isT=p==='TACNA (Total Dpto.)';
+      return `<tr class="${isT?'total':''}">
+        <td style="${isT?'font-weight:600':`color:${COLORS[p]};font-weight:500`}"><span class="prov-dot" style="background:${isT?'#888':COLORS[p]}"></span>${p}</td>
+        ${cols.slice(1).map(([,k])=>`<td style="text-align:right">${fmt(k,d[k])}</td>`).join('')}
+      </tr>`;
+    }).join('')+`</tbody>`;
+}
+
+function buildAll(){
+  buildKPIs();
+  const active=document.querySelector('.panel.active').id;
+  ({demografia:buildDemografia,pobreza:buildPobreza,eventos:buildEventos,hidrografia:buildHidrografia,laboral:buildLaboral,tabla:buildTabla})[active]?.();
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+    buildKPIs();
+    ({demografia:buildDemografia,pobreza:buildPobreza,eventos:buildEventos,hidrografia:buildHidrografia,laboral:buildLaboral,tabla:buildTabla})[tab.dataset.tab]?.();
+  });
+});
+
+document.getElementById('provFilter').addEventListener('change',e=>{
+  activeFilter=e.target.value;
+  buildAll();
+});
+
+buildKPIs(); buildDemografia();
+</script>
+</body>
+</html>
